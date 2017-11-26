@@ -94,9 +94,15 @@ def copy_file(file, backup_root):
         log.info("Backed up {} into {}".format(file, backup_dir + "/" + timestamp))
 
     if os.path.isfile(file):
+        if not os.path.isabs(file):
+            log.warning("{} is a relative path, and is not supported!\n"
+                        "Please remove from file list. Ignoring and continuing.".format(file))
+            return
+
         backup_dir = backup_root + os.path.abspath(file)
         prev_backup = backup_dir + "/latest"
         if os.path.isfile(prev_backup):
+
             prev_hash = hash_file(prev_backup)
             new_hash = hash_file(file)
             if prev_hash != new_hash:
@@ -117,7 +123,8 @@ def copy_files(files, backup_root):
     :param backup_root: the root directory to backup into
     """
     for file in files:
-        copy_file(file, backup_root)
+        if file.rstrip():
+            copy_file(file, backup_root)
 
 
 if __name__ == '__main__':
@@ -144,6 +151,8 @@ if __name__ == '__main__':
     if args.add is not None:
         file = args.add[0]
         if os.path.isfile(file):
+            if not os.path.isabs(file):
+                raise ValueError("Relative paths are not supported!")
             watch.add_file(file)
         else:
             raise FileExistsError("File {} does not exist!".format(args.add[0]))

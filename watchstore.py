@@ -44,5 +44,4 @@ class WatchStore:
     def __write_files(self, files):
         with open(self.__config_file_path, 'w') as config_file:
             for file in files:
-                print(file)
                 config_file.write(file + "\n")

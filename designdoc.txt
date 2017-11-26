@@ -1,0 +1,138 @@
+Computing Modifications
+The assignment mentions we should copy files "only if the file has changed since the script last checked", it then
+goes on to show you how to get a files modification time. This is not an accurate way to compute whether a file has
+changed, you can just use the "touch" command to change a files modification time without ever changing the file itself.
+You can even set the modification to any arbitrary date with touch - e.g. touch -d "50 years ago" filename. So instead
+of using the modification time to compute whether a file changed, I decided to compute a SHA1 hash of the file, if
+on the next backup run this hash has changed then we know the file really has been modified. I used SHA1 as it is
+currently what git still uses (even though it has flaws, these flaws are not yet practical and make little difference
+to this application).
+
+-------------------------------------------------------------------------------
+Support for watching, copying files and reading from a config
+The config file is simply a list of files editable by a user. The files in this list can have absolute paths, relative
+paths are not supported. If a relative path is entered, a warning will be logged to the console when we reach this path
+telling the user that relative paths are not supported and they should remove this path. If a line is pure whitespace
+it will be ignored. If a line contains pure garbage, or a file which does not exist, a warning will be logged telling
+the user this file does not exist and they should remove it.
+
+If the file does exist, it will be copied. To support files in different paths with the same name, the entire directory
+structure of the file being copied will be recreated under a directory in the path the script is run from. This
+directory defaults to "backup", but can be overridden with the flag "--backup-location". The method that does this
+copying is "copy_files" which takes the list of files and the backup root directory. This calls "copy_file" on each file.
+"copy_file" uses "os.makedirs" to create the directory structure of the file to be copied, specifically it calls
+"os.makedirs(backup_dir, exist_ok=True)", "exists_ok" is set to True so that if the  directory structure already exists
+it will not fail. At the end of this directory structure an final directory is created named after the file we are
+copying. For example if we are copying a file into a local backup root called "backup/", and the files path is
+
+/home/test/myfile.txt
+
+A directory structure will be created as follows
+
+./backup/home/test/myfile.txt/
+
+Once this structure is created the file will be copied into ./backup/home/test/myfile.txt/ but its name will
+be the current timestamp e.g. ./backup/home/test/myfile.txt/26-Nov-17_12-01-47. Finally, we create a file called
+"latest" which is the latest backup of this file, we need this so we can compare its hash with the hash of the file
+again in the future and see whether it has really changed and needs to be backed up. After a few backup runs of
+myfile.txt the backup directory may look as follows
+
+$ ls ./backup/home/test/myfile.txt/
+26-Nov-17_12-18-12  26-Nov-17_13-31-50  26-Nov-17_13-36-27  latest
+
+Note that we have to compute the hash of latest on every invocation of a backup which includes myfile.txt. This is not
+great, and we could have stored the hash itself as a filename, but it is quick enough for our purposes.
+
+-------------------------------------------------------------------------------
+Robust at starting and stopping
+The tool is completely stateless, it reads the files to be backed up from a config file (whose location can be
+overridden with the "--config-location flag"), it checks whether a file has been modified by comparing hashes which it
+computes on each run and it can store the backup structure anywhere you point it to (use "--backup-location" to override
+this. Given it's statelessness and it's ability to read and write anywhere you like, it is very robust at starts and
+stops.
+
+
+The tool must check files once a minute
+Included in the submission is a crontab example which will run the tool every minute. The tool itself also contains a
+standalone option which you can invoke via the command line with "--standalone". This will run the function "standalone"
+which will first start a thread to invoke itself after a minute, and then runs a backup - after 1 minute it will do this
+again, continually invoking itself until you exit with CTRL-C. The more robust option is the cron entry, if you run
+standalone and it dies it will not restart, unless you hook it up to your init system.
+
+-------------------------------------------------------------------------------
+Add, list and remove
+Add, list and remove are controlled by "--add", "--list" and "--remove" flags respectively. These are mutually
+exclusive.
+
+To add a file to the config:
+
+python3 timemachine.py  --add /home/test/myfile.txt
+
+If the file does not exist, a FileExistsError will be thrown:
+
+$ python3 timemachine.py  --add /home/test/myfile.txt
+Traceback (most recent call last):
+  File "timemachine.py", line 159, in <module>
+    raise FileExistsError("File {} does not exist!".format(args.add[0]))
+FileExistsError: File /home/test/myfile.txt does not exist!
+
+Note that we do not error out for file paths which are manually written to the config, as mentioned above we only
+display a warning to a user. It errors out here because we can safely do so without interrupting backups, because the
+backups do not run when any of these flags are passed.
+
+If the file already exists in the config a warning is displayed to the user:
+
+$ python3 timemachine.py  --add /home/test/myfile.txt
+2017-11-26 14:00:30,931 - WARNING - Attempt to add file which is already being monitored (/home/test/myfile.txt), ignoring ...
+
+
+To remove a file:
+
+$ python3 timemachine.py  --remove /home/test/myfile.txt
+2017-11-26 14:03:46,974 - INFO - /home/test/myfile.txt removed from list of monitored files ...
+
+If the file does not exist in the list display a warning:
+
+$ python3 timemachine.py  --remove /home/test/myfile.txt
+2017-11-26 14:04:42,257 - WARNING - Cannot remove non-existent file path /home/test/myfile.txt, ignoring ...
+
+
+To list files:
+
+$ python3 timemachine.py  --list
+2017-11-26 14:06:13,497 - INFO - The following files are being monitored:
+2017-11-26 14:06:13,497 - INFO - /home/test/myfile.txt
+
+
+As mentioned these three options are mutually exclusive, if you try to use more than one at a time the help and an
+error message will be dislayed:
+
+$ python3 timemachine.py  --list --remove test
+usage: timemachine.py [-h]
+                      [--add ADD | --remove REMOVE | --list | --standalone]
+                      [--config-location CONFIG_LOCATION]
+                      [--backup-location BACKUP_LOCATION]
+timemachine.py: error: argument --remove: not allowed with argument --list
+
+
+-------------------------------------------------------------------------------
+A note on imports
+
+argparse - used for parsing and adding semantics to command line argument options.
+
+hashlib - used to compute the sha1 hash of files
+
+logging - used to simplify logging
+    I was using "print" and manually adding timestamps but with logging you can define a formatter with a timestamp once
+    and have that used everywhere
+
+os - used for some file operations, such as "isfile" (is a path an actual file) and "isabs" (is a path
+    an absolute path)
+
+shutil - used for copying files
+
+sys - used solely to pass a handle to stdout to the logging channel
+
+threading - used to allow the tool to run on a one minute schedule for the "--standalone" flag
+
+time - used to compute timestamps for naming files
