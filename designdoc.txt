@@ -10,11 +10,12 @@ to this application).
 
 -------------------------------------------------------------------------------
 Support for watching, copying files and reading from a config
-The config file is simply a list of files editable by a user. The files in this list can have absolute paths, relative
-paths are not supported. If a relative path is entered, a warning will be logged to the console when we reach this path
-telling the user that relative paths are not supported and they should remove this path. If a line is pure whitespace
-it will be ignored. If a line contains pure garbage, or a file which does not exist, a warning will be logged telling
-the user this file does not exist and they should remove it.
+The config file is simply a list of files editable by a user, it defaults to "config.dat" but can be overridden with the
+""--config-location" flag. The files in this list can have absolute paths, relative paths are not supported. If a
+relative path is entered, a warning will be logged to the console when we reach this path telling the user that relative
+paths are not supported and they should remove this path. If a line is pure whitespace it will be ignored. If a line
+contains pure garbage, or a file which does not exist, a warning will be logged telling the user this file does not
+exist and they should remove it.
 
 If the file does exist, it will be copied. To support files in different paths with the same name, the entire directory
 structure of the file being copied will be recreated under a directory in the path the script is run from. This
@@ -53,11 +54,11 @@ stops.
 
 
 The tool must check files once a minute
-Included in the submission is a crontab example which will run the tool every minute. The tool itself also contains a
-standalone option which you can invoke via the command line with "--standalone". This will run the function "standalone"
-which will first start a thread to invoke itself after a minute, and then runs a backup - after 1 minute it will do this
-again, continually invoking itself until you exit with CTRL-C. The more robust option is the cron entry, if you run
-standalone and it dies it will not restart, unless you hook it up to your init system.
+Included in the submission is a crontab example (see "crontab.example") which will run the tool every minute. The tool
+itself also contains a standalone option which you can invoke via the command line with "--standalone". This will run
+the function "standalone" which will first start a thread to invoke itself after a minute, and then runs a backup -
+after 1 minute it will do this again, continually invoking itself until you exit with CTRL-C. The more robust option is
+the cron entry, if you run standalone and it dies it will not restart, unless you hook it up to your init system.
 
 -------------------------------------------------------------------------------
 Add, list and remove
