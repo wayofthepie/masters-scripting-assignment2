@@ -70,7 +70,7 @@ class BackupService:
 
     def __hash_file(self, file_path):
         """
-        Generate a SHA1 hash of a file
+        Generate the SHA1 hash of a file
         :param file_path: path to the file
         :return: the SHA1 hash as a hexadecimal string
         """
