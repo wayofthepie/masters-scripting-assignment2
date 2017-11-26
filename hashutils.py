@@ -30,9 +30,8 @@ def hash_string(string):
 
 def is_sha1_hash(hex_string):
     """
-    Computes whether the given hex string is a sha1 hash by converting
-    the string to an
-    :param hex_string:
-    :return:
+    Computes whether the given hex string is a sha1 hash
+    :param hex_string: the string to check
+    :return: True if the string is a sha1 hash
     """
     return int.from_bytes(bytearray.fromhex(hex_string), 'big').bit_length() == 160
