@@ -87,7 +87,7 @@ if __name__ == '__main__':
 
     if not os.path.isfile(config):
         log.info("Config file does not exist, creating ...")
-        open(config, 'w+')
+        open(config, 'w+').close()
 
     # Setup the backup location
     backup = args.backup_location
