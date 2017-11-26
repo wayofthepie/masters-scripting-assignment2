@@ -1,6 +1,6 @@
 class WatchStore:
     """
-    Control what gets monitored
+    Modify and read from the file list store
     """
 
     def __init__(self, config_file_path, log):

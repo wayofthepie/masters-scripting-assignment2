@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import logging
 import os
 import shutil
@@ -7,7 +8,6 @@ import threading
 import time
 from pathlib import Path
 
-import hashutils
 from watchstore import WatchStore
 
 """
@@ -54,16 +54,37 @@ def parse_args():
     return parser.parse_args()
 
 
+def hash_file(file_path):
+    """
+    Generate a SHA1 hash of a file
+    :param file_path: path to the file
+    :return: the SHA1 hash as a hexadecimal string
+    """
+    buffersize = 64000
+    sha1 = hashlib.sha1()
+    with open(file_path, 'rb') as file:
+        data = file.read(buffersize)
+        while data != b'':
+            sha1.update(data)
+            data = file.read(buffersize)
+    return sha1.hexdigest()
+
+
 def copy_file(file, backup_root):
     """
-    Copy the given file to the configured backup location
-    :param file:
-    :return:
+    Copy the given file to the configured backup location. This creates
+    the full directory structure of the file being copied, underneath the
+    backup_root directory. It will also create a directory named after the file
+    itself and when backing up will copy the file into this directory renaming
+    the backed up file to the current timestamp. Finally it will create a
+    file called "latest" every time we run a backup so we can trivially
+    compare the last backed up file with the file on the next backup run.
+    :param file: the file to backup.
     """
 
     def copy_timestamped(f, backup_dir):
         """
-        Copy the given file to the directory, as a timestamp. Also
+        Copy the given file to the directory, named just as a timestamp. Also
         create a latest file, denoting the latest copy of this file.
         :param f: the file to copy
         :param backup_dir: the directory to copy into
@@ -77,8 +98,8 @@ def copy_file(file, backup_root):
         backup_dir = backup_root + os.path.abspath(file)
         prev_backup = backup_dir + "/latest"
         if os.path.isfile(prev_backup):
-            prev_hash = hashutils.hash_file(prev_backup)
-            new_hash = hashutils.hash_file(file)
+            prev_hash = hash_file(prev_backup)
+            new_hash = hash_file(file)
             if prev_hash != new_hash:
                 copy_timestamped(file, backup_dir)
             else:
