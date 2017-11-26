@@ -1,18 +1,13 @@
-Computing Modifications
-The assignment mentions we should copy files "only if the file has changed since the script last checked", it then
-goes on to show you how to get a files modification time. This is not an accurate way to compute whether a file has
-changed, you can just use the "touch" command to change a files modification time without ever changing the file itself.
-You can even set the modification to any arbitrary date with touch - e.g. touch -d "50 years ago" filename. So instead
-of using the modification time to compute whether a file changed, I decided to compute a SHA1 hash of the file, if
-on the next backup run this hash has changed then we know the file really has been modified. I used SHA1 as it is
-currently what git still uses (even though it has flaws, these flaws are not yet practical and make little difference
-to this application).
-
 -------------------------------------------------------------------------------
+Rough Design
+
+Computing Modifications
+To check whether a file has been modified, it compares the SHA1 hash of the file with the SHA1 hash of its last backup.
+
 Support for watching, copying files and reading from a config
 The config file is simply a list of files editable by a user, it defaults to "config.dat" but can be overridden with the
 ""--config-location" flag. The files in this list can have absolute paths, relative paths are not supported. If a
-relative path is entered, a warning will be logged to the console when we reach this path telling the user that relative
+relative path is entered, a warning will be logged to the console when it reaches this path telling the user that relative
 paths are not supported and they should remove this path. If a line is pure whitespace it will be ignored. If a line
 contains pure garbage, or a file which does not exist, a warning will be logged telling the user this file does not
 exist and they should remove it.
@@ -23,8 +18,8 @@ directory defaults to "backup", but can be overridden with the flag "--backup-lo
 copying is "copy_files" which takes the list of files and the backup root directory. This calls "copy_file" on each file.
 "copy_file" uses "os.makedirs" to create the directory structure of the file to be copied, specifically it calls
 "os.makedirs(backup_dir, exist_ok=True)", "exists_ok" is set to True so that if the  directory structure already exists
-it will not fail. At the end of this directory structure an final directory is created named after the file we are
-copying. For example if we are copying a file into a local backup root called "backup/", and the files path is
+it will not fail. At the end of this directory structure an final directory is created named after the file it is
+copying. For example if it is copying a file into a local backup root called "backup/", and the files path is
 
 /home/test/myfile.txt
 
@@ -33,8 +28,8 @@ A directory structure will be created as follows
 ./backup/home/test/myfile.txt/
 
 Once this structure is created the file will be copied into ./backup/home/test/myfile.txt/ but its name will
-be the current timestamp e.g. ./backup/home/test/myfile.txt/26-Nov-17_12-01-47. Finally, we create a file called
-"latest" which is the latest backup of this file, we need this so we can compare its hash with the hash of the file
+be the current timestamp e.g. ./backup/home/test/myfile.txt/26-Nov-17_12-01-47. Finally, it creates a file called
+"latest" which is the latest backup of this file, it needs this so it can compare its hash with the hash of the file
 again in the future and see whether it has really changed and needs to be backed up. After a few backup runs of
 myfile.txt the backup directory may look as follows
 
@@ -44,7 +39,8 @@ $ ls ./backup/home/test/myfile.txt/
 Note that we have to compute the hash of latest on every invocation of a backup which includes myfile.txt. This is not
 great, and we could have stored the hash itself as a filename, but it is quick enough for our purposes.
 
--------------------------------------------------------------------------------
+To test this functionality while developing the script continually ran.
+
 Robust at starting and stopping
 The tool is completely stateless, it reads the files to be backed up from a config file (whose location can be
 overridden with the "--config-location flag"), it checks whether a file has been modified by comparing hashes which it
@@ -53,6 +49,19 @@ this. Given it's statelessness and it's ability to read and write anywhere you l
 stops.
 
 
+-------------------------------------------------------------------------------
+Design Decisions
+
+Computing modifications
+The assignment mentions we should copy files "only if the file has changed since the script last checked", it then
+goes on to show you how to get a files modification time. This is not an accurate way to compute whether a file has
+changed, you can just use the "touch" command to change a files modification time without ever changing the file itself.
+You can even set the modification to any arbitrary date with touch - e.g. touch -d "50 years ago" filename. So instead
+of using the modification time to compute whether a file changed, I decided to compute a SHA1 hash of the file, if
+on the next backup run this hash has changed then we know the file really has been modified. I used SHA1 as it is
+currently what git still uses (even though it has flaws, these flaws are not yet practical and make little difference
+to this application).
+
 The tool must check files once a minute
 Included in the submission is a crontab example (see "crontab.example") which will run the tool every minute. The tool
 itself also contains a standalone option which you can invoke via the command line with "--standalone". This will run
@@ -60,8 +69,39 @@ the function "standalone" which will first start a thread to invoke itself after
 after 1 minute it will do this again, continually invoking itself until you exit with CTRL-C. The more robust option is
 the cron entry, if you run standalone and it dies it will not restart, unless you hook it up to your init system.
 
+Copying the directory structure
+As mentioned above in the "Rough Design" section, the whole directory structure is copied into a new root directory
+under the backup location with the filename as the final directory and the file is copied into this path, renaming to
+the current timestamp. This makes it very clear when and what file were copied. Creating a "latest" file also simplifies
+comparing hashes when running another backup.
+
+
 -------------------------------------------------------------------------------
-Add, list and remove
+Failure Modes
+
+The script tries its best to warn users about invalid data (e.g. non-existent files, relative paths etc...) when running
+a backup. It tries to not fail, so that files which can be backed up continue to do so. The only place it will fail is
+when the script it self takes in data (adding/removing paths with with "--add" or "--remove") and validation of this
+data fails.
+
+
+-------------------------------------------------------------------------------
+Testing
+Initially I as going to take a TDD approach, but in the end I created and tested most functions in the repl. As the
+script came together I had it continually running as I was making modifications, making sure it still worked correctly.
+
+
+-------------------------------------------------------------------------------
+Assumptions
+It wasn't clear how we should handle where to copy files, files with the same name or relative paths. I decided to
+copy the full directory structure and backup as mentioned in "Design Decisions" as this makes it easier for a user to
+find the file history, without having to go through the tool - this in turn meant files with the same name are
+supported. I did not add support for relative paths as the script can be run from anywhere, this would have added some
+unnecessary complexity.
+
+
+-------------------------------------------------------------------------------
+Overview
 Add, list and remove are controlled by "--add", "--list" and "--remove" flags respectively. These are mutually
 exclusive.
 
@@ -77,8 +117,8 @@ Traceback (most recent call last):
     raise FileExistsError("File {} does not exist!".format(args.add[0]))
 FileExistsError: File /home/test/myfile.txt does not exist!
 
-Note that we do not error out for file paths which are manually written to the config, as mentioned above we only
-display a warning to a user. It errors out here because we can safely do so without interrupting backups, because the
+Note that it does not error out for file paths which are manually written to the config, as mentioned above it only
+display a warning to a user. It errors out here because it can safely do so without interrupting backups, because the
 backups do not run when any of these flags are passed.
 
 If the file already exists in the config a warning is displayed to the user:
