@@ -6,7 +6,6 @@ import shutil
 import sys
 import threading
 import time
-from pathlib import Path
 
 from watchstore import WatchStore
 
@@ -15,9 +14,9 @@ Defaults for the backup and config file locations.
 """
 STORE = "backup"
 CONFIG_FILE = "config.dat"
-log = logging.getLogger()
 
 # Global log configuration
+log = logging.getLogger()
 log.setLevel(logging.DEBUG)
 channel = logging.StreamHandler(sys.stdout)
 channel.setLevel(logging.INFO)
@@ -28,14 +27,14 @@ log.addHandler(channel)
 
 def standalone(watch, backup):
     """
-    Runs a copy of the files in the config every 60 seconds
+    Runs a backup of the files in the config every 60 seconds
     :param watch: the watch store object
     :param backup: the location to backup to
     """
-    log.info(" Starting backup ...")
+    log.info("Starting backup ...")
     threading.Timer(60, lambda: standalone(watch, backup)).start()
     copy_files(watch.list_files(), backup)
-    log.info(" Backup complete ...")
+    log.info("Backup complete ...")
 
 
 def parse_args():
@@ -92,7 +91,7 @@ def copy_file(file, backup_root):
         timestamp = time.strftime("%d-%h-%y_%H-%M-%S")
         shutil.copy(f, backup_dir + "/" + timestamp)
         shutil.copy(f, backup_dir + "/latest")
-        log.info("Backed up " + f + " into " + backup_dir + "/" + timestamp)
+        log.info("Backed up {} into {}".format(file, backup_dir + "/" + timestamp))
 
     if os.path.isfile(file):
         backup_dir = backup_root + os.path.abspath(file)
@@ -103,12 +102,12 @@ def copy_file(file, backup_root):
             if prev_hash != new_hash:
                 copy_timestamped(file, backup_dir)
             else:
-                log.info(file + " is unchanged, not backing up ...")
+                log.info("{} is unchanged, not backing up ...".format(file))
         else:
             os.makedirs(backup_dir, exist_ok=True)
             copy_timestamped(file, backup_dir)
     else:
-        log.warning("\"" + file + "\"" + " does not exist! Please remove from file list. Ignoring and continuing.")
+        log.warning("{} does not exist! Please remove from file list. Ignoring and continuing.".format(file))
 
 
 def copy_files(files, backup_root):
@@ -128,17 +127,17 @@ if __name__ == '__main__':
     config = CONFIG_FILE
     if args.config_location is not None:
         config = args.config_location[0]
-        log.info("Config path set to " + os.path.abspath(config))
+        log.info("Config path set to ".format(os.path.abspath(config)))
 
     if not os.path.isfile(config):
         log.info("Config file does not exist, creating ...")
-        Path(config).touch()
+        open(config, 'w+')
 
     # Setup the backup location
     backup = STORE
     if args.backup_location is not None:
         backup = args.backup_location[0]
-        log.info("Backup root path set to " + os.path.abspath(backup))
+        log.info("Backup root path set to {}".format(os.path.abspath(backup)))
 
     watch = WatchStore(config, log)
 
@@ -147,7 +146,7 @@ if __name__ == '__main__':
         if os.path.isfile(file):
             watch.add_file(file)
         else:
-            raise FileExistsError("File " + args.add[0] + " does not exist!")
+            raise FileExistsError("File {} does not exist!".format(args.add[0]))
     elif args.remove is not None:
         watch.remove_file(args.remove[0])
     elif args.list:
@@ -158,4 +157,8 @@ if __name__ == '__main__':
         log.info("Scheduling a backup run every minute ...")
         standalone(watch, backup)
     else:
-        copy_files(watch.list_files(), backup)
+        files = watch.list_files()
+        if len(files) > 0:
+            copy_files(files, backup)
+        else:
+            log.warning("Config file {} does not contain any files, nothing to do.".format(config))

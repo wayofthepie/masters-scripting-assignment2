@@ -26,7 +26,7 @@ class WatchStore:
             self.__write_files(files)
             self.__log.info(file_path + " added to list of monitored files ...")
         else:
-            self.__log.warning("Attempt to add file which is already being monitored (" + file_path + "), ignoring ...")
+            self.__log.warning("Attempt to add file which is already being monitored ({}), ignoring ...".format(file_path))
 
     def remove_file(self, file_path):
         """
@@ -39,7 +39,7 @@ class WatchStore:
             self.__write_files(files)
             self.__log.info(file_path + " removed from list of monitored files ...")
         else:
-            self.__log.warning("Cannot remove non-existent file path " + file_path + ", ignoring ...")
+            self.__log.warning("Cannot remove non-existent file path {}, ignoring ...".format(file_path))
 
     def __write_files(self, files):
         with open(self.__config_file_path, 'w') as config_file:
