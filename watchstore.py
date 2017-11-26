@@ -18,7 +18,7 @@ class WatchStore:
     def add_file(self, file_path):
         """
         Add a file to the list of files being monitored
-        :param file_path:
+        :param file_path: the file path to add to the list
         """
         files = self.list_files()
         if file_path not in files:
@@ -31,7 +31,7 @@ class WatchStore:
     def remove_file(self, file_path):
         """
         Remove a file from the list of files being monitored
-        :param file_path:
+        :param file_path: the file path to remove from the list
         """
         files = self.list_files()
         if file_path in self.list_files():

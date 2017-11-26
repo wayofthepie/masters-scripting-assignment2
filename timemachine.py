@@ -27,6 +27,11 @@ log.addHandler(channel)
 
 
 def standalone(watch, backup):
+    """
+    Runs a copy of the files in the config every 60 seconds
+    :param watch: the watch store object
+    :param backup: the location to backup to
+    """
     log.info(" Starting backup ...")
     threading.Timer(60, lambda: standalone(watch, backup)).start()
     copy_files(watch.list_files(), backup)
